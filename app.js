@@ -1,17 +1,17 @@
-/* 艾欧泽亚物价雷达 · 原创轻量前端，无构建工具、无需密钥 */
+/* FF14 物价查询 · 静态网站 */
 (() => {
   'use strict';
   const API = 'https://universalis.app/api/v2';
-  const APP_VERSION = 'v3 · 交互修复';
   const XIV_CN = 'https://xivapi-v2.xivcdn.com';
   const CAFE = 'https://cafemaker.wakingsands.com';
   const CENTERS = ['陆行鸟', '莫古力', '猫小胖', '豆豆柴'];
   const COLORS = {'陆行鸟':'#3aaceb','莫古力':'#f37799','猫小胖':'#68ce86','豆豆柴':'#e9b84b'};
-  const QUICK_ITEMS = []; // 仅显示真实搜索历史，不再预设示例物品
+  const QUICK_ITEMS = [];
   const el = id => document.getElementById(id);
   const fmt = n => Number.isFinite(n) ? Math.round(n).toLocaleString('en-US') : '—';
   const fixed = (n,d=2) => Number.isFinite(n) ? n.toFixed(d) : '—';
-  const compact = n => !Number.isFinite(n) ? '—' : n >= 1e8 ? `${fixed(n / 1e8,2)}亿` : n >= 1e4 ? `${fixed(n / 1e4,2)}万` : fmt(n);
+  const concise = n => Number(n.toFixed(2)).toLocaleString('zh-CN',{maximumFractionDigits:2});
+  const compact = n => !Number.isFinite(n) ? '—' : n >= 1e8 ? `${concise(n / 1e8)}亿` : n >= 1e4 ? `${concise(n / 1e4)}万` : fmt(n);
   const safe = value => String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const numeric = v => {const n=Number(v);return Number.isFinite(n)?n:null};
   const validId = v => Number.isSafeInteger(Number(v)) && Number(v)>0 && Number(v)<10000000;
@@ -19,11 +19,11 @@
   const local = (key, fallback) => {try {return JSON.parse(localStorage.getItem('eoradar_'+key)) ?? fallback;} catch{return fallback;}};
   const save = (key,value) => {try {localStorage.setItem('eoradar_'+key,JSON.stringify(value));}catch{}};
   const state = {
-    item:null, dc: CENTERS.includes(qs.get('dc')) || qs.get('dc')==='中国'?qs.get('dc'):(CENTERS.includes(local('dc','陆行鸟')) || local('dc','陆行鸟')==='中国' ? local('dc','陆行鸟') : '陆行鸟'),
+    item:null, dc: CENTERS.includes(qs.get('dc')) ? qs.get('dc') : 'all',
     quality:['all','nq','hq'].includes(qs.get('quality'))?qs.get('quality'):'all',
     hideOutliers:true,worldMap:new Map(),dcWorlds:new Map(),rawMarkets:[],rawSales:[],rows:[],daily:[],
     marketLoaded:false,historyLoaded:false,marketError:'',historyError:'',loadToken:0,searchToken:0,searchTimer:null,
-    favourites:local('fav',[]),recent:local('recent',[]),chartDates:[],metaReady:false
+    favourites:local('fav',[]),recent:local('recent',[]),favNames:local('favNames',{}),showAllFavourites:false,chartDates:[],metaReady:false
   };
   let toastTimer;
   let activeAbort = null;
@@ -52,7 +52,7 @@
   function nameOfWorld(worldID,marketRow){const n=state.worldMap.get(Number(worldID))?.name||marketRow?.worldName;return n || `#${worldID}`}
   function marketUrl(dc,id){return `${API}/${encodeURIComponent(dc)}/${id}?entries=0`}
   function historyUrl(dc,id){return `${API}/history/${encodeURIComponent(dc)}/${id}?entriesToReturn=3000&entriesWithin=2592000`}
-  function centerList(){return state.dc==='中国'?CENTERS:[state.dc]}
+  function centerList(){return state.dc==='all'?CENTERS:[state.dc]}
   function setLoading(){state.rawMarkets=[];state.rawSales=[];state.marketLoaded=false;state.historyLoaded=false;state.rows=[];state.daily=[];state.marketError='';state.historyError='';
     ['stat-min','stat-median','stat-sales','stat-count'].forEach(id=>el(id).textContent='…');el('stat-min-server').textContent='数据加载中';el('stat-quartiles').textContent='计算中';el('stat-sales-note').textContent='读取成交记录中';el('stat-count-note').textContent='当前记录的挂单条数';el('stat-coverage').textContent='—';el('item-updated').textContent='正在更新…';el('listing-summary').textContent='—';el('export-button').disabled=true;el('server-rows').innerHTML='<div class="empty-state"><span class="loading-spinner"></span> 正在获取跨服市场数据…</div>';el('chart').innerHTML='<div class="empty-state"><span class="loading-spinner"></span> 正在读取 30 天成交历史…</div>';notice('');}
   async function loadPrices(){
@@ -62,13 +62,13 @@
     setLoading();
     const centers=centerList();
     const markets=Promise.allSettled(centers.map(dc=>fetchJSON(marketUrl(dc,id),{signal,timeout:11500}).then(data=>({dc,data}))));
-    const histories=Promise.allSettled(centers.map(dc=>fetchJSON(historyUrl(dc,id),{signal,timeout:13000}).then(data=>({dc,data}))));
+    const histories=markets.then(()=>Promise.allSettled(centers.map(dc=>fetchJSON(historyUrl(dc,id),{signal,timeout:13000}).then(data=>({dc,data})))));
     markets.then(results=>{
       if(token!==state.loadToken)return;
       state.rawMarkets=results.filter(x=>x.status==='fulfilled' && Array.isArray(x.value?.data?.listings)).map(x=>x.value);
       state.marketLoaded=true;state.marketError=state.rawMarkets.length<centers.length?'部分或全部大区挂单接口失败':'';
       if(state.rawMarkets.length && state.marketError)notice('部分大区的挂单读取失败，当前结果只包含成功返回的数据。点击刷新可以重试。');
-      if(!state.rawMarkets.length){const extra=location.protocol==='file:'?'你正在直接打开本地 HTML；建议将 ZIP 部署到 GitHub Pages 后再试。':'请检查网络是否能访问 Universalis。';el('server-rows').innerHTML='<div class="empty-state">行情获取失败或请求超时。请尝试「刷新」，也可切换大区。<br>'+extra+'</div>';notice('市场数据读取失败，页面不会伪造价格。'+extra)}
+      if(!state.rawMarkets.length){const extra=location.protocol==='file:'?'此打开方式可能限制数据请求，请通过浏览器访问 HTTPS 网站。':'请检查网络是否能访问 Universalis。';el('server-rows').innerHTML='<div class="empty-state">行情获取失败或请求超时。请尝试「刷新」，也可切换大区。<br>'+extra+'</div>';notice('市场数据读取失败，页面不会伪造价格。'+extra)}
       renderMarket();
     });
     histories.then(results=>{
@@ -99,7 +99,7 @@
     if(!state.marketLoaded)return;
     const current=allListings();const prices=current.map(x=>x.pricePerUnit).sort((a,b)=>a-b);const rows=groupRows();state.rows=rows;
     const best=rows.find(x=>x.min!=null);el('stat-min').textContent=best?fmt(best.min):'—';el('stat-min-server').textContent=best?`${best.dc} / ${best.name}`:'暂无挂单';
-    el('stat-median').textContent=prices.length?compact(percentile(prices,.5)):'—';el('stat-quartiles').textContent=prices.length?`P25 ${compact(percentile(prices,.25))}　·　P75 ${compact(percentile(prices,.75))}`:'暂无价格分布';
+    el('stat-median').textContent=prices.length?`${compact(percentile(prices,.25))} ～ ${compact(percentile(prices,.75))}`:'—';el('stat-quartiles').textContent=prices.length?`中位价 ${fmt(percentile(prices,.5))} 金币`:'暂无挂单价格';
     el('stat-count').textContent=fmt(current.length);el('stat-count-note').textContent=`共 ${fmt(current.reduce((s,r)=>s+r.quantity,0))} 件库存`;
     el('stat-coverage').textContent=`${rows.filter(x=>x.count>0).length}/${rows.length} 服`;
     const times=rows.filter(x=>x.count>0).map(x=>x.upload).filter(Boolean);const last=times.length?Math.max(...times):null;
@@ -112,9 +112,9 @@
     const toX=(n)=>Math.max(0,Math.min(100,((n-minMarket)/range)*100));
     el('scale-label').textContent=all.length?`${compact(minMarket)} – ${compact(maxMarket)}`:'';
     el('server-rows').innerHTML=rows.map(g=>{
-      const color=COLORS[g.dc]||'#6fb4b9';const has=g.count>0;const dcLabel=state.dc==='中国'?`<small>${safe(g.dc)}</small>`:'';
+      const color=COLORS[g.dc]||'#888888';const has=g.count>0;const dcLabel=state.dc==='all'?`<small>${safe(g.dc)}</small>`:'';
       const low=has?toX(g.min):0, hi=has?toX(g.p75):0,median=has?toX(g.median):0;
-      const plot=has?`<div class="range-track" style="left:${low}%;width:${Math.max(1,hi-low)}%;--dc-color:${color};--track:${color}40" title="${safe(g.name)}：最低 ${fmt(g.min)}，P75 ${fmt(g.p75)}"></div><div class="range-lower" style="left:${low}%;width:${Math.max(.6,median-low)}%;--dc-color:${color}"></div><div class="median-tick" style="left:${median}%" title="中位价 ${fmt(g.median)}"></div>`:'<span class="no-data">暂无挂单</span>';
+      const plot=has?`<div class="range-track" style="left:${low}%;width:${Math.max(1,hi-low)}%;--dc-color:${color};--track:${color}40" title="${safe(g.name)}：最低 ${fmt(g.min)} 金币，常见价区间上限 ${fmt(g.p75)} 金币"></div><div class="range-lower" style="left:${low}%;width:${Math.max(.6,median-low)}%;--dc-color:${color}"></div><div class="median-tick" style="left:${median}%" title="中位价 ${fmt(g.median)} 金币"></div>`:'<span class="no-data">暂无挂单</span>';
       const miniLabel=`<small class="mobile-server-meta">${fmt(g.count)} 条挂单 · ${g.upload?relative(g.upload):'时间未知'}</small>`;
       const trend=g.trend?` <span class="trend-arrow ${g.trend}">${g.trend==='up'?'↑':'↓'}</span>`:'';
       const stale=g.upload&&Date.now()-g.upload>48*3600000?' · 较旧':'';
@@ -140,7 +140,7 @@
   const svgNode=(tag,attrs={},inner='')=>`<${tag} ${Object.entries(attrs).map(([k,v])=>`${k}="${safe(v)}"`).join(' ')}>${inner}</${tag}>`;
   function drawChart(){
     if(!state.historyLoaded)return;const data=state.daily;if(!data.length)return;
-    const holder=el('chart');const w=Math.max(300,holder.clientWidth||780),mobile=w<650,h=mobile?282:326,margin={left:mobile?47:65,right:mobile?12:41,top:18,bottom:35};
+    const holder=el('chart');const w=Math.max(300,holder.clientWidth||780),mobile=w<650,h=mobile?220:248,margin={left:mobile?47:65,right:mobile?12:41,top:18,bottom:35};
     const plotW=w-margin.left-margin.right,plotH=h-margin.top-margin.bottom;const nonempty=data.filter(x=>x.avg!=null);
     if(!nonempty.length){holder.innerHTML='<div class="empty-state">近 30 天没有可用的成交记录。尝试选择「全部品质」或更大的查询范围。</div>';return}
     const allLow=Math.min(...nonempty.map(x=>x.min)),allHigh=Math.max(...nonempty.map(x=>x.max));
@@ -158,7 +158,7 @@
     const svg=holder.querySelector('svg');const tooltip=el('chart-tooltip');
     function show(ev){const box=svg.getBoundingClientRect();const x=(ev.clientX-box.left)*w/Math.max(box.width,1);const i=Math.max(0,Math.min(29,Math.round((x-margin.left)/plotW*29)));const d=data[i];
       const cursor=el('chart-cursor');cursor.style.display='';cursor.setAttribute('x1',px(i));cursor.setAttribute('x2',px(i));
-      tooltip.innerHTML=`<strong>${safe(d.date)}</strong>${d.count?`均价 ${fmt(d.avg)} Gil<br>范围 ${fmt(d.min)} ～ ${fmt(d.max)}<br>成交 ${fmt(d.quantity)} 件`:'暂无已上传成交'}`;
+      tooltip.innerHTML=`<strong>${safe(d.date)}</strong>${d.count?`均价 ${fmt(d.avg)} 金币/件<br>价格范围 ${fmt(d.min)} ～ ${fmt(d.max)} 金币<br>成交 ${fmt(d.quantity)} 件`:'暂无已上传成交'}`;
       tooltip.classList.remove('hidden');const half=tooltip.offsetWidth/2;tooltip.style.left=`${Math.max(half+5,Math.min(holder.clientWidth-half-5,ev.clientX-holder.getBoundingClientRect().left))}px`;
       tooltip.style.top=`${Math.max(2,ev.clientY-holder.getBoundingClientRect().top-tooltip.offsetHeight-13)}px`;tooltip.style.transform='translateX(-50%)';
     }
@@ -216,7 +216,7 @@
     box.innerHTML=box._results.map((r,i)=>`<button class="suggestion" data-index="${i}" role="option"><span class="suggestion-icon">${iconURL(r.icon)?`<img src="${safe(iconURL(r.icon))}" alt="" loading="lazy">`:'✧'}</span><span class="suggestion-body"><strong>${safe(r.name)}</strong><small>点击查看市场行情</small></span><span class="suggestion-id">#${r.id}</span></button>`).join('');box.classList.remove('hidden');el('search-input').setAttribute('aria-expanded','true');
   }
   function hideSuggestions(){el('search-results').classList.add('hidden');el('search-input').setAttribute('aria-expanded','false')}
-  function showSearchError(){const box=el('search-results');box._results=[];box.innerHTML='<div class="suggestion-message">中文搜索源暂时无法访问。可尝试输入物品 ID，或在部署到 GitHub Pages 后重试。</div>';box.classList.remove('hidden');searchStatus('搜索失败：外部物品资料接口未响应。')}
+  function showSearchError(){const box=el('search-results');box._results=[];box.innerHTML='<div class="suggestion-message">物品搜索暂时不可用，可尝试输入物品 ID，或稍后重试。</div>';box.classList.remove('hidden');searchStatus('搜索失败：外部物品资料接口未响应。')}
   async function inputSearch(){const q=el('search-input').value.trim();const token=++state.searchToken;
     el('search-results')._results=[];searchStatus('');if(!q){hideSuggestions();return}if(q.length<2&&!validId(q)){hideSuggestions();return}
     el('search-results').innerHTML='<div class="suggestion-message"><span class="loading-spinner"></span> 正在查找物品…</div>';el('search-results').classList.remove('hidden');
@@ -235,17 +235,46 @@
       if(results.length===1){selectItem(results[0]);return}
       renderSuggestions(results,q);searchStatus(`找到 ${results.length} 个候选物品，请从下拉结果中点击选择。`);
     }catch(e){showSearchError()}
-    finally{btn.disabled=false;btn.innerHTML='查询价格 <span aria-hidden="true">↗</span>'}
+    finally{btn.disabled=false;btn.textContent='查询价格'}
   }
-  function addRecent(item){const k=state.recent.filter(r=>r.id!==item.id);state.recent=[{id:item.id,name:item.name},...k].slice(0,7);save('recent',state.recent);renderRecent()}
+  const RECENT_LIMIT = 7;
+  const FAVOURITES_VISIBLE = 8;
+  function rememberFavouriteName(item){
+    if(!item || !validId(item.id) || !item.name || item.name.startsWith('物品 #'))return;
+    if(!state.favourites.includes(Number(item.id)))return;
+    state.favNames[item.id] = item.name;
+    save('favNames',state.favNames);
+  }
+  function addRecent(item){
+    const k=state.recent.filter(r=>Number(r.id)!==Number(item.id));
+    state.recent=[{id:item.id,name:item.name},...k].slice(0,RECENT_LIMIT);
+    save('recent',state.recent);
+    rememberFavouriteName(item);
+    renderRecent();
+  }
   function renderRecent(){
-    const known=[...state.recent,...QUICK_ITEMS];
-    const fav=state.favourites.map(id=>{const match=known.find(r=>r.id===id);return {id,name:match?.name||`物品 #${id}`,isFav:true}});
-    const others=known.filter((r,i,a)=>!state.favourites.includes(r.id)&&a.findIndex(x=>x.id===r.id)===i);
-    const items=[...fav,...others].slice(0,8);
-    el('recent-chips').innerHTML=items.length?items.map(r=>`<button class="chip" data-id="${r.id}" data-name="${safe(r.name)}">${r.isFav?'★ ':''}${safe(r.name)}</button>`).join(''):'<span class="recent-placeholder">还没有查询记录</span>';
+    // 最近查询与收藏是两份独立的本地记录，清理一份不会影响另一份。
+    const recent=Array.isArray(state.recent)?state.recent.slice(0,RECENT_LIMIT):[];
+    const favouriteIds=Array.isArray(state.favourites)?[...new Set(state.favourites.map(Number).filter(validId))]:[];
+    const favouriteLabels=favouriteIds.map(id=>{
+      const current=state.item?.id===id && !state.item?.name.startsWith('物品 #')?state.item.name:null;
+      const recentName=recent.find(r=>Number(r.id)===id && !String(r.name).startsWith('物品 #'))?.name;
+      return {id,name:current||state.favNames?.[id]||recentName||`物品 #${id}`};
+    });
+    // 迁移旧版收藏时，优先保留原历史记录里的中文名称。
+    let updated=false;
+    for(const fav of favouriteLabels){if(!String(fav.name).startsWith('物品 #') && state.favNames[fav.id]!==fav.name){state.favNames[fav.id]=fav.name;updated=true}}
+    if(updated)save('favNames',state.favNames);
+    const chip=r=>`<button type="button" class="chip" data-id="${r.id}" data-name="${safe(r.name)}">${safe(r.name)}</button>`;
+    el('recent-chips').innerHTML=recent.length?recent.map(chip).join(''):'<span class="recent-placeholder">暂无查询记录</span>';
+    el('clear-recent-button').hidden=recent.length===0;
+    el('favorites-line').hidden=favouriteLabels.length===0;
+    el('favorite-chips').innerHTML=(state.showAllFavourites?favouriteLabels:favouriteLabels.slice(0,FAVOURITES_VISIBLE)).map(chip).join('');
+    const more=el('more-favorites-button');
+    more.hidden=favouriteLabels.length<=FAVOURITES_VISIBLE;
+    if(!more.hidden)more.textContent=state.showAllFavourites?'收起收藏':`展开其余 ${favouriteLabels.length-FAVOURITES_VISIBLE} 项`;
   }
-  function selectItem(item){if(!validId(item.id))return;const same=state.item?.id===Number(item.id);state.item={...item,id:Number(item.id)};el('market-dashboard').classList.remove('hidden');el('welcome-state').classList.add('hidden');el('fav-button').disabled=false;el('refresh-button').disabled=false;hideSuggestions();searchStatus('');el('search-input').value=item.name.startsWith('物品 #')?'':item.name;updateHeader();addRecent(item);updateFav();updateUrl();if(!same||!state.marketLoaded)loadPrices();else renderAll();loadItemDetails(item.id)}
+  function selectItem(item){if(!validId(item.id))return;clearTimeout(state.searchTimer);state.searchToken++;const same=state.item?.id===Number(item.id);state.item={...item,id:Number(item.id)};el('market-dashboard').classList.remove('hidden');el('welcome-state').classList.add('hidden');el('fav-button').disabled=false;el('refresh-button').disabled=false;hideSuggestions();searchStatus('');el('search-input').value=item.name.startsWith('物品 #')?'':item.name;updateHeader();addRecent(item);updateFav();updateUrl();if(!same||!state.marketLoaded)loadPrices();else renderAll();loadItemDetails(item.id)}
   function updateHeader(){el('item-id-label').textContent=`#${state.item.id}`;el('item-name').textContent=state.item.name;el('item-description').textContent='正在获取物品描述…';el('item-icon').innerHTML='<span>✧</span>';}
   async function loadItemDetails(id){const expected=id;let data=null;try{const p=new URLSearchParams({language:'chs',fields:'Name,Description,Icon,CanBeHq,IsUntradable'});const r=await fetchJSON(`${XIV_CN}/api/sheet/Item/${id}?${p}`,{timeout:11000});data={name:r.fields?.Name,description:r.fields?.Description,icon:iconFromFields(r.fields)};}
     catch(e){try{const r=await fetchJSON(`${CAFE}/item/${id}?language=chs`,{timeout:8000});data={name:r.Name,description:r.Description,icon:r.Icon}}catch{}}
@@ -255,17 +284,19 @@
     const desc=typeof data?.description==='string'?data.description:data?.description?.value;
     el('item-description').textContent=desc?String(desc).replace(/<[^>]*>/g,'').slice(0,120):'市场板数据来源：Universalis · 价格以游戏内为准';
     const image=iconURL(data?.icon || state.item.icon);if(image)el('item-icon').innerHTML=`<img src="${safe(image)}" alt="物品图标" onerror="this.parentNode.textContent='✧'">`;
+    // 查询详情回填中文名称时同步更新历史和收藏标签。
+    const last=state.recent.find(r=>Number(r.id)===expected);
+    if(last && last.name!==state.item.name){last.name=state.item.name;save('recent',state.recent)}
+    rememberFavouriteName(state.item);
     updateFav();
   }
   function updateFav(){const favourite=state.favourites.includes(state.item.id);el('fav-icon').textContent=favourite?'★':'☆';el('fav-label').textContent=favourite?'已收藏':'收藏物品';el('fav-button').setAttribute('aria-pressed',String(favourite));renderRecent()}
   function renderAll(){renderMarket();renderHistory()}
   function changeQuality(q){state.quality=q;document.querySelectorAll('[data-quality]').forEach(b=>{const active=b.dataset.quality===q;b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active))});updateUrl();if(state.item)renderAll()}
-  function exportCSV(){if(!state.daily.length)return;const rows=[['日期','成交件数(已上传)','均价(Gil)','最低价(Gil)','最高价(Gil)','成交记录数'],...state.daily.map(x=>[x.date,x.quantity,x.avg??'',x.min??'',x.max??'',x.count])];const csv='\ufeff'+rows.map(r=>r.join(',')).join('\r\n');const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));const a=document.createElement('a');a.href=url;a.download=`FF14_成交记录_${state.item.id}_${state.dc}_${state.quality}.csv`;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),5000)}
+  function exportCSV(){if(!state.daily.length)return;const rows=[['日期','成交件数(已上传)','均价(金币/件)','最低价(金币/件)','最高价(金币/件)','成交记录数'],...state.daily.map(x=>[x.date,x.quantity,x.avg??'',x.min??'',x.max??'',x.count])];const csv='\ufeff'+rows.map(r=>r.join(',')).join('\r\n');const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));const a=document.createElement('a');a.href=url;a.download=`FF14_成交记录_${state.item.id}_${state.dc==='all'?'全区':state.dc}_${state.quality}.csv`;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),5000)}
   function init(){
-    // 先绑定夜间模式和显示脚本启动状态，避免外部网络等其他逻辑故障影响基础交互。
     el('theme-button').addEventListener('click',()=>{const on=document.documentElement.classList.toggle('dark');save('dark',on);el('theme-button').textContent=on?'☀':'☾'});
     el('script-warning')?.remove();
-    el('runtime-status').textContent=`页面脚本已启动 · ${APP_VERSION}`;
     document.documentElement.classList.toggle('dark',local('dark',false));el('theme-button').textContent=document.documentElement.classList.contains('dark')?'☀':'☾';
     el('scope-select').value=state.dc;el('outlier-switch').checked=state.hideOutliers;
     document.querySelectorAll('[data-quality]').forEach(b=>{b.classList.toggle('active',b.dataset.quality===state.quality);b.setAttribute('aria-pressed',String(b.dataset.quality===state.quality))});
@@ -274,20 +305,26 @@
     el('search-button').addEventListener('click',performSearch);
     el('search-results').addEventListener('click',e=>{const b=e.target.closest('.suggestion');if(b){const item=el('search-results')._results?.[Number(b.dataset.index)];if(item)selectItem(item)}});
     document.addEventListener('click',e=>{if(!el('search-wrap').contains(e.target))hideSuggestions()});
-    el('recent-chips').addEventListener('click',e=>{const b=e.target.closest('[data-id]');if(b)selectItem({id:Number(b.dataset.id),name:b.dataset.name})});
+    for(const group of ['recent-chips','favorite-chips']){
+      el(group).addEventListener('click',e=>{const b=e.target.closest('[data-id]');if(b)selectItem({id:Number(b.dataset.id),name:b.dataset.name})});
+    }
+    el('clear-recent-button').addEventListener('click',()=>{
+      state.recent=[];
+      save('recent',[]);
+      renderRecent();
+      toast('查询历史已清空，收藏未改变');
+    });
+    el('more-favorites-button').addEventListener('click',()=>{state.showAllFavourites=!state.showAllFavourites;renderRecent()});
     el('scope-select').addEventListener('change',e=>{state.dc=e.target.value;save('dc',state.dc);updateUrl();if(state.item)loadPrices()});
     document.querySelectorAll('[data-quality]').forEach(b=>b.addEventListener('click',()=>changeQuality(b.dataset.quality)));
     el('outlier-switch').addEventListener('change',e=>{state.hideOutliers=e.target.checked;renderMarket()});
     el('refresh-button').addEventListener('click',()=>{if(!state.item)return;toast('正在重新读取行情');loadPrices()});
-    el('fav-button').addEventListener('click',()=>{if(!state.item)return;const n=state.item.id;state.favourites=state.favourites.includes(n)?state.favourites.filter(x=>x!==n):[n,...state.favourites];save('fav',state.favourites);updateFav();toast(state.favourites.includes(n)?'已加入收藏':'已移出收藏')});
+    el('fav-button').addEventListener('click',()=>{if(!state.item)return;const n=state.item.id;state.favourites=state.favourites.includes(n)?state.favourites.filter(x=>x!==n):[n,...state.favourites];save('fav',state.favourites);rememberFavouriteName(state.item);updateFav();toast(state.favourites.includes(n)?'已加入收藏':'已移出收藏')});
     el('share-button').addEventListener('click',async()=>{const url=location.href;try{await navigator.clipboard.writeText(url);toast('查询链接已复制')}catch{const t=document.createElement('textarea');t.value=url;document.body.append(t);t.select();try{document.execCommand('copy');toast('查询链接已复制')}catch{toast('复制失败，请从地址栏复制链接')}t.remove()}});
     el('export-button').addEventListener('click',exportCSV);
     let lastW=0;if(typeof ResizeObserver!=='undefined')new ResizeObserver(()=>{const w=el('chart').clientWidth;if(Math.abs(w-lastW)>8){lastW=w;drawChart()}}).observe(el('chart'));
     renderRecent();const item=qs.get('item');
     if(validId(item))selectItem({id:Number(item),name:`物品 #${item}`});
-    if(location.protocol==='file:'){
-      el('runtime-status').textContent='网页交互已启动 · 当前为本地文件，联网查价建议使用 GitHub Pages HTTPS 地址';
-    }
     loadMetadata().then(()=>{if(state.marketLoaded)renderMarket()});
   }
   function safeInit(){
@@ -295,8 +332,7 @@
     catch(error){
       console.error('网站启动异常:',error);
       const warn=el('script-warning');
-      if(warn){warn.style.display='flex';warn.innerHTML='<strong>⚠ 页面脚本启动失败</strong><span>这次不是市场价格接口超时，而是网页初始化出现异常。请确认使用 v3 部署包在 Safari / Chrome 浏览器访问，必要时强制刷新页面。</span>';}
-      if(el('runtime-status'))el('runtime-status').textContent=`启动异常：${String(error?.message||error).slice(0,120)}`;
+      if(warn){warn.style.display='block';warn.textContent='页面加载失败，请刷新网页后重试。';}
     }
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',safeInit);else safeInit();
