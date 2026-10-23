@@ -140,7 +140,7 @@
   const svgNode=(tag,attrs={},inner='')=>`<${tag} ${Object.entries(attrs).map(([k,v])=>`${k}="${safe(v)}"`).join(' ')}>${inner}</${tag}>`;
   function drawChart(){
     if(!state.historyLoaded)return;const data=state.daily;if(!data.length)return;
-    const holder=el('chart');const w=Math.max(300,holder.clientWidth||780),mobile=w<650,h=mobile?220:248,margin={left:mobile?47:65,right:mobile?12:41,top:18,bottom:35};
+    const holder=el('chart');const w=Math.max(300,holder.clientWidth||780),mobile=w<650,h=mobile?146:174,margin={left:mobile?42:56,right:mobile?10:29,top:11,bottom:25};
     const plotW=w-margin.left-margin.right,plotH=h-margin.top-margin.bottom;const nonempty=data.filter(x=>x.avg!=null);
     if(!nonempty.length){holder.innerHTML='<div class="empty-state">近 30 天没有可用的成交记录。尝试选择「全部品质」或更大的查询范围。</div>';return}
     const allLow=Math.min(...nonempty.map(x=>x.min)),allHigh=Math.max(...nonempty.map(x=>x.max));
@@ -267,7 +267,7 @@
     if(updated)save('favNames',state.favNames);
     const chip=r=>`<button type="button" class="chip" data-id="${r.id}" data-name="${safe(r.name)}">${safe(r.name)}</button>`;
     el('recent-chips').innerHTML=recent.length?recent.map(chip).join(''):'<span class="recent-placeholder">暂无查询记录</span>';
-    el('clear-recent-button').hidden=recent.length===0;
+    el('clear-recent-button').hidden=recent.length===0;el('recent-line').hidden=recent.length===0;
     el('favorites-line').hidden=favouriteLabels.length===0;
     el('favorite-chips').innerHTML=(state.showAllFavourites?favouriteLabels:favouriteLabels.slice(0,FAVOURITES_VISIBLE)).map(chip).join('');
     const more=el('more-favorites-button');
@@ -290,7 +290,7 @@
     rememberFavouriteName(state.item);
     updateFav();
   }
-  function updateFav(){const favourite=state.favourites.includes(state.item.id);el('fav-icon').textContent=favourite?'★':'☆';el('fav-label').textContent=favourite?'已收藏':'收藏物品';el('fav-button').setAttribute('aria-pressed',String(favourite));renderRecent()}
+  function updateFav(){const favourite=state.favourites.includes(state.item.id);el('fav-icon').textContent=favourite?'★':'☆';el('fav-label').textContent=favourite?'已收藏':'收藏';el('fav-button').setAttribute('aria-pressed',String(favourite));el('fav-button').setAttribute('aria-label',favourite?'取消收藏当前物品':'收藏当前物品');renderRecent()}
   function renderAll(){renderMarket();renderHistory()}
   function changeQuality(q){state.quality=q;document.querySelectorAll('[data-quality]').forEach(b=>{const active=b.dataset.quality===q;b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active))});updateUrl();if(state.item)renderAll()}
   function exportCSV(){if(!state.daily.length)return;const rows=[['日期','成交件数(已上传)','均价(金币/件)','最低价(金币/件)','最高价(金币/件)','成交记录数'],...state.daily.map(x=>[x.date,x.quantity,x.avg??'',x.min??'',x.max??'',x.count])];const csv='\ufeff'+rows.map(r=>r.join(',')).join('\r\n');const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));const a=document.createElement('a');a.href=url;a.download=`FF14_成交记录_${state.item.id}_${state.dc==='all'?'全区':state.dc}_${state.quality}.csv`;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),5000)}
