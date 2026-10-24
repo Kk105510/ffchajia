@@ -422,3 +422,168 @@ footer p{line-height:1.4}
  .item-meta .updated-info{display:none}
  .stat-meta{display:none}
 }
+
+
+/* Light, airy utility layout. Keep the density of the comparison view. */
+:root{
+  --bg:#f9f9f9;--surface:#ffffff;--panel:#ffffff;
+  --ink:#252525;--ink2:#4a4a4a;--muted:#868686;
+  --line:#f0f0f0;--line2:#e8e8e8;--teal:#323232;
+  --mint:#777;--mint2:#f5f5f5;--shadow:none;
+}
+:root.dark{
+  --bg:#141414;--surface:#1d1d1d;--panel:#1d1d1d;
+  --ink:#f0f0f0;--ink2:#d0d0d0;--muted:#9c9c9c;
+  --line:#303030;--line2:#373737;--teal:#e9e9e9;
+  --mint:#c0c0c0;--mint2:#282828;
+}
+body{font-family:Inter,'Segoe UI','PingFang SC','Microsoft YaHei UI','Noto Sans SC',system-ui,sans-serif;font-size:11px;font-weight:400;line-height:1.55;letter-spacing:.008em}
+button,input,select{font-weight:400}
+.app-shell{width:min(1280px,calc(100% - 40px))}
+.topbar{height:49px}
+.brand-name{font-size:13px;font-weight:450;letter-spacing:0}
+.brand-name strong{font-weight:550}
+.brand-icon{width:26px;height:26px}
+.brand-icon svg{width:18px;height:18px;stroke-width:1}
+.live-badge{font-size:9px;font-weight:400;letter-spacing:.01em;color:var(--muted);background:transparent;padding:4px 8px}
+.live-dot{box-shadow:none}
+.icon-button{font-weight:400;font-size:16px;border-color:var(--line2);border-radius:6px}
+main{padding-top:10px}
+.search-panel{padding:11px 14px 8px;border-color:var(--line2);border-radius:8px}
+.search-main{gap:9px}
+.search-wrap input{height:35px;border-radius:5px;font-size:11px;font-weight:400;padding-left:32px}
+.search-icon{left:10px;top:10px;width:14px;height:14px}
+.search-shortcut{font-size:9px;font-weight:400;top:7px}
+.primary-button{height:35px;min-width:84px;font-size:11px;font-weight:500;border-radius:5px}
+.search-bottom{padding:11px 0 9px;gap:15px}
+.control-group{gap:7px}
+.control-group label,.control-label{font-size:10px;font-weight:400}
+.control-group select{font-size:10px;min-height:28px;font-weight:400;border-radius:5px}
+.quality-tabs{background:var(--bg);border-color:var(--line2)}
+.quality-tabs button{font-size:10px;font-weight:400;min-width:36px}
+.quality-tabs button.active{font-weight:500;outline:1px solid var(--line2)}
+.search-actions{gap:7px}
+.secondary-button{height:28px;padding:0 10px;font-size:10px;font-weight:400;border-radius:5px}
+.recent-line{padding-top:7px;min-height:27px;gap:9px}
+.recent-line>span{font-size:10px;font-weight:400}
+.recent-chips{gap:7px}
+.chip{font-size:10px;font-weight:400;padding:3px 8px;border-radius:5px}
+.inline-clear-button{font-size:9px;font-weight:400;text-decoration:none}
+.inline-clear-button:hover{text-decoration:underline}
+.search-status,.notice{font-size:10px}
+.welcome-state{margin-top:10px;padding:16px 18px;min-height:82px;border-radius:8px}
+.welcome-state h2{font-size:13px;font-weight:500;margin-bottom:5px}
+.welcome-state p{font-size:10px;line-height:1.65}
+.item-heading{margin:12px 0 10px;gap:10px}
+.item-identity{gap:10px}
+.item-icon{width:34px;height:34px;border-radius:6px}
+.item-heading h2{font-size:15px;line-height:1.35;font-weight:550}
+.item-tag,.item-info p{font-size:9px;font-weight:400}
+.share-button{font-size:9px;font-weight:400;padding:6px 8px}
+.stats{gap:10px}
+.stat-card{min-height:82px;padding:11px 13px;border-radius:7px;gap:5px}
+.stat-label{font-size:10px;font-weight:450;line-height:1.45}
+.stat-meta{font-size:9px;font-weight:400}
+.stat-number{font-size:clamp(15px,1.45vw,19px);font-weight:550;letter-spacing:-.25px;line-height:1.22;margin-top:1px}
+#stat-median{font-size:clamp(14px,1.33vw,18px);font-weight:520;line-height:1.3}
+.stat-unit{font-size:9px;font-weight:400}
+.stat-bottom{font-size:9px;font-weight:400;line-height:1.45;min-height:13px;gap:6px}
+.small-strong,.strong-tag{font-size:9px;font-weight:400}
+.section-card{margin-top:11px;padding:12px 14px 10px;border-radius:8px}
+.section-top h3{font-size:13px;font-weight:550;line-height:1.45}
+.section-top p{font-size:10px}
+.switch-row{font-size:9px;font-weight:400;gap:7px}
+.legend{margin:10px 0 6px;gap:13px}
+.legend>span,.trend-legend>span{font-size:9px;font-weight:400;gap:6px}
+.server-table-head{font-size:9px;font-weight:400;padding:7px 0 8px}
+.server-row{min-height:31px;padding:5px 0;font-size:10px;line-height:1.4}
+.server-name{font-size:10px;font-weight:450;gap:6px}
+.server-name i{height:15px;width:3px}
+.number-cell,.min-cell{font-weight:500}
+.daily-cell,.time-cell,.range-cell{font-size:9px;font-weight:400}
+.server-rows{max-height:280px}
+.section-foot,.chart-footer{font-size:9px;line-height:1.5;padding-top:8px;margin-top:7px}
+.trend-legend{gap:10px}
+.trend-legend>span{font-size:9px}
+.trend-legend i{width:12px;height:4px}
+.chart-holder{margin-top:6px}
+.chart text{font-size:9px;font-weight:400}
+.chart .price-line{stroke-width:1.5}
+.text-action{font-size:10px;font-weight:450}
+footer{margin-top:12px;font-size:9px;line-height:1.65}
+footer strong{font-weight:500}
+footer p{line-height:1.65}
+@media(max-width:1000px){
+  .app-shell{width:calc(100% - 28px)}
+  .search-bottom{gap:9px}
+  .stat-card{min-height:80px}
+  .stat-number{font-size:17px}
+  #stat-median{font-size:15px}
+}
+@media(max-width:740px){
+  .app-shell{width:calc(100% - 20px)}
+  .topbar{height:46px}
+  .brand-name{font-size:12px}
+  .brand-icon{width:24px;height:24px}
+  .live-badge{font-size:8px;padding:3px 5px}
+  main{padding-top:8px}
+  .search-panel{padding:9px 10px 7px;border-radius:7px}
+  .search-main{gap:7px}
+  .search-wrap input{height:34px;font-size:11px;padding-left:29px}
+  .search-icon{left:9px;top:10px}
+  .primary-button{height:34px;min-width:69px;font-size:10px;font-weight:500}
+  .search-bottom{column-gap:7px;row-gap:7px;padding:9px 0 8px}
+  .search-bottom>.control-group:first-child select{min-height:27px;font-size:10px}
+  .control-label{font-size:9px}
+  .quality-control{gap:5px}
+  .quality-tabs{min-height:28px}
+  .quality-tabs button{font-size:10px;min-width:32px;padding:5px 5px}
+  .search-actions{gap:5px}
+  .secondary-button{padding:0 7px;font-size:9.5px}
+  .recent-line{min-height:22px;padding-top:5px;gap:4px 7px}
+  .recent-line>span{font-size:9px}
+  .recent-chips{gap:5px}
+  .chip{padding:3px 6px;font-size:9px}
+  .item-heading{margin:9px 0 8px;gap:7px}
+  .item-identity{gap:7px}
+  .item-icon{width:30px;height:30px}
+  .item-icon img{width:27px;height:27px}
+  .item-heading h2{font-size:13px;font-weight:550}
+  .item-tag,.updated-info{font-size:9px}
+  .share-button{font-size:9px;padding:5px 6px}
+  .stats{gap:7px}
+  .stat-card{min-height:74px;padding:9px 11px;border-radius:6px;gap:3px}
+  .stat-label{font-size:9px;font-weight:450}
+  .stat-meta{font-size:8px}
+  .stat-number{font-size:16px;font-weight:550;margin-top:1px}
+  #stat-median{font-size:14px;font-weight:500}
+  .stat-bottom,.stat-unit{font-size:9px;font-weight:400;line-height:1.45}
+  .section-card{margin-top:9px;padding:10px 11px 8px;border-radius:7px}
+  .section-top h3{font-size:12px;font-weight:550}
+  .section-top p{display:none}
+  .legend{margin:8px 0 6px;gap:10px}
+  .legend>span{font-size:9px}
+  .server-table-head{font-size:9px;padding:6px 0 7px}
+  .server-rows{max-height:290px}
+  .server-row{min-height:42px;padding:5px 0;row-gap:4px;line-height:1.45}
+  .server-name{font-size:10px;font-weight:450;gap:5px}
+  .server-name i{height:14px;width:3px}
+  .server-row .min-cell,.server-row .number-cell,.server-row .daily-cell{font-size:10px;font-weight:500}
+  .server-row .median-cell{font-size:10px;font-weight:400}
+  .server-row .plot-cell{height:7px}
+  .section-foot,.chart-footer{font-size:9px;line-height:1.5;padding-top:7px;margin-top:7px}
+  .trend-legend{gap:7px}
+  .trend-legend>span{font-size:9px}
+  footer{margin-top:11px;font-size:9px}
+  .welcome-state{min-height:80px;padding:14px;margin-top:10px}
+  .welcome-state h2{font-size:12px;font-weight:500}
+  .welcome-state p{font-size:10px}
+}
+@media(max-width:355px){
+  .app-shell{width:calc(100% - 14px)}
+  .search-panel{padding-left:7px;padding-right:7px}
+  .search-bottom{column-gap:3px}
+  .quality-control{gap:3px}
+  .quality-tabs button{min-width:30px;padding-left:3px;padding-right:3px}
+  .secondary-button{padding-left:5px;padding-right:5px}
+}

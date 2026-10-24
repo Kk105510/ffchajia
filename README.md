@@ -1,15 +1,19 @@
 # FF14 市场查价
 
-响应式国服市场查价页面，适合手机和窄窗口，支持全区及四大区价格对比、HQ/NQ、收藏、最近查询与清空历史、30 天成交趋势。
+面向最终幻想 XIV 国服的跨服市场查价网页，支持手机和桌面浏览器。
 
-## 发布到 GitHub Pages
+## 功能
 
-将 `index.html`、`styles.css`、`app.js`、`favicon.svg`、`.nojekyll` 放在仓库根目录，进入 `Settings → Pages`，使用 `Deploy from a branch`、`main`、`/(root)` 发布。已有网站直接覆盖同名文件即可，访问网址无需改变。
+- 物品名称与 ID 查询
+- 全区或单个大区查看、NQ/HQ 筛选
+- 挂单、成交趋势与服务器价格对比
+- 最近查询、收藏、手动刷新与成交 CSV 导出
+- 黑白配色、夜间模式、响应式布局
 
-## 数据及隐私
+市场行情由 Universalis 的玩家上传数据提供，可能存在延迟或缺失。
 
-查询和成交数据来自 Universalis 玩家上传记录，可能滞后或不完整。中文物品搜索依赖外部百科和名称映射服务，接口不能访问时会提示。
+## 发布
 
-最近查询最多 7 条。收藏及历史分别保存在当前浏览器 `localStorage` 中，清空历史不会删除收藏或当前查询，不支持自动跨设备同步。
+将 `index.html`、`app.js`、`styles.css`、`favicon.svg` 及 `.nojekyll` 放在仓库根目录，在 GitHub 仓库 Settings → Pages 中使用 `main` 分支与 `/(root)` 发布。
 
-本项目为非官方社区工具，与 Square Enix 无关联。
+本站为非官方社区工具。
